@@ -1,25 +1,25 @@
 # Core dependencies
-streamlit==1.30.0
-pandas==2.2.2
-numpy==1.26.4
+streamlit
+pandas
+numpy
 
 # Google API dependencies
-google-auth==2.29.0
-google-auth-oauthlib==1.2.0
-google-auth-httplib2==0.2.0
-google-api-python-client==2.140.0
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
 
 # File handling and processing
-PyPDF2==3.0.1
-lxml==5.2.2
-zipfile==1.0  # Included in Python standard library, but listed for clarity if extended
-openpyxl==3.1.5  # For Excel file reading
-xlrd==2.0.1  # For older Excel files
-pyxlsb==1.0.10  # For .xlsb files
-xlwings==0.30.6  # For Excel automation
-xlrd2==0.0.0  # Alternative to xlrd (if needed)
-python-dateutil==2.9.0.post0
+PyPDF2
+lxml
+zipfile  # Included in Python standard library, listed for clarity if extended
+openpyxl  # For Excel file reading
+xlrd  # For older Excel files
+pyxlsb  # For .xlsb files
+xlwings  # For Excel automation
+xlrd2  # Alternative to xlrd (if needed)
+python-dateutil
 
 # Miscellaneous
-requests==2.32.3
-typing-extensions==4.12.2
+requests
+typing-extensions
