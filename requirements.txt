@@ -12,7 +12,6 @@ google-api-python-client
 # File handling and processing
 PyPDF2
 lxml
-zipfile  # Included in Python standard library, listed for clarity if extended
 openpyxl  # For Excel file reading
 xlrd  # For older Excel files
 pyxlsb  # For .xlsb files
