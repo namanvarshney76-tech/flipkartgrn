@@ -881,7 +881,7 @@ Gmail Drive Folder: 1ehit788FCfH1Qu9XSR9DTBDzfWVC9NNV
             
             st.markdown("**Excel Configuration:**")
             st.code("""
-Excel Source Folder: 1desL_sZCNAWUpqz8qAunr3yYHqg1HZZC
+Excel Source Folder: 16tjidimV1X3019yYAnsSO9ysI_b9NRdC
 Target Spreadsheet: 1cIjurlePErCYfSCAkOC0z7FnMwsmIoBeGI47_Qk0pq8
 Sheet Name: ninjutsu_grn
 Header Row: First row (0)
@@ -918,7 +918,7 @@ Duplicate Removal: Based on PurchaseOrderId + SkuId
     }
     
     excel_config = {
-        'excel_folder_id': '1desL_sZCNAWUpqz8qAunr3yYHqg1HZZC',
+        'excel_folder_id': '16tjidimV1X3019yYAnsSO9ysI_b9NRdC',
         'spreadsheet_id': '1cIjurlePErCYfSCAkOC0z7FnMwsmIoBeGI47_Qk0pq8',
         'sheet_name': 'ninjutsu_grn',
         'header_row': 0
@@ -1091,6 +1091,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
