@@ -12,17 +12,14 @@ import tempfile
 import time
 import logging
 import pandas as pd
-import zipfile
+import PyPDF2
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from io import BytesIO, StringIO
 import threading
 import queue
 import re
-import io
 import warnings
-from lxml import etree
-import openai  # Assuming OpenAI-like API for Llama; adjust if actual Llama API differs
 
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -30,7 +27,6 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
-import zipfile
 import dateutil.parser
 from google.oauth2 import service_account
 
@@ -61,14 +57,12 @@ class FlipkartNinjutsuAutomation:
             status_text.text("Authenticating with Google APIs...")
             progress_bar.progress(10)
             
-            # Check for existing token in session state
             if 'oauth_token' in st.session_state:
                 try:
                     combined_scopes = list(set(self.gmail_scopes + self.drive_scopes + self.sheets_scopes))
                     creds = Credentials.from_authorized_user_info(st.session_state.oauth_token, combined_scopes)
                     if creds and creds.valid:
                         progress_bar.progress(50)
-                        # Build services
                         self.gmail_service = build('gmail', 'v1', credentials=creds)
                         self.drive_service = build('drive', 'v3', credentials=creds)
                         self.sheets_service = build('sheets', 'v4', credentials=creds)
@@ -78,7 +72,6 @@ class FlipkartNinjutsuAutomation:
                     elif creds and creds.expired and creds.refresh_token:
                         creds.refresh(Request())
                         st.session_state.oauth_token = json.loads(creds.to_json())
-                        # Build services
                         self.gmail_service = build('gmail', 'v1', credentials=creds)
                         self.drive_service = build('drive', 'v3', credentials=creds)
                         self.sheets_service = build('sheets', 'v4', credentials=creds)
@@ -88,49 +81,36 @@ class FlipkartNinjutsuAutomation:
                 except Exception as e:
                     st.info(f"Cached token invalid, requesting new authentication: {str(e)}")
             
-            # Use Streamlit secrets for OAuth
             if "google" in st.secrets and "credentials_json" in st.secrets["google"]:
                 creds_data = json.loads(st.secrets["google"]["credentials_json"])
                 combined_scopes = list(set(self.gmail_scopes + self.drive_scopes + self.sheets_scopes))
                 
-                # Configure for web application
                 flow = Flow.from_client_config(
                     client_config=creds_data,
                     scopes=combined_scopes,
                     redirect_uri=st.secrets.get("redirect_uri", "https://your-streamlit-app-url")  # Configure in secrets
                 )
                 
-                # Generate authorization URL
                 auth_url, _ = flow.authorization_url(prompt='consent')
-                
-                # Check for callback code
                 query_params = st.query_params
                 if "code" in query_params:
                     try:
                         code = query_params["code"][0]
                         flow.fetch_token(code=code)
                         creds = flow.credentials
-                        
-                        # Save credentials in session state
                         st.session_state.oauth_token = json.loads(creds.to_json())
-                        
                         progress_bar.progress(50)
-                        # Build services
                         self.gmail_service = build('gmail', 'v1', credentials=creds)
                         self.drive_service = build('drive', 'v3', credentials=creds)
                         self.sheets_service = build('sheets', 'v4', credentials=creds)
-                        
                         progress_bar.progress(100)
                         status_text.text("Authentication successful!")
-                        
-                        # Clear the code from URL
                         st.query_params.clear()
                         return True
                     except Exception as e:
                         st.error(f"Authentication failed: {str(e)}")
                         return False
                 else:
-                    # Show authorization link
                     st.markdown("### Google Authentication Required")
                     st.markdown(f"[Authorize with Google]({auth_url})")
                     st.info("Click the link above to authorize, you'll be redirected back automatically")
@@ -143,26 +123,19 @@ class FlipkartNinjutsuAutomation:
             st.error(f"Authentication failed: {str(e)}")
             return False
 
-    # Adapted from flipkartninjutsu_mail.py
     def process_gmail_workflow(self, config: dict, log_queue: queue.Queue):
         """Process Gmail attachment download workflow"""
         log_queue.put("[START] Starting Gmail to Google Drive automation")
         log_queue.put(f"[CONFIG] Parameters: sender='{config['sender']}', search_term='{config['search_term']}', days_back={config['days_back']}")
         
-        # Authenticate (already done, but log)
-        log_queue.put("[SUCCESS] Successfully authenticated with Gmail and Google Drive")
-        
-        # Search for emails
         emails = self.search_emails(config['sender'], config['search_term'], config['days_back'], config['max_results'])
         
         if not emails:
             log_queue.put("[INFO] No emails found matching criteria")
             return {'success': True, 'processed': 0}
         
-        # Process emails
         stats = self.process_emails(emails, config['search_term'], config.get('gdrive_folder_id'), log_queue)
         
-        # Report results
         log_queue.put("[COMPLETE] AUTOMATION COMPLETE!")
         log_queue.put(f"[STATS] Emails processed: {stats['processed_emails']}/{stats['total_emails']}")
         log_queue.put(f"[STATS] Total attachments: {stats['total_attachments']}")
@@ -220,9 +193,8 @@ class FlipkartNinjutsuAutomation:
         if parent_id:
             query += f" and '{parent_id}' in parents"
         existing = self.drive_service.files().list(q=query, fields='files(id)').execute()
-        files = existing.get('files', [])
-        if files:
-            return files[0]['id']
+        if existing.get('files', []):
+            return existing['files'][0]['id']
         folder_metadata = {'name': folder_name, 'mimeType': 'application/vnd.google-apps.folder'}
         if parent_id:
             folder_metadata['parents'] = [parent_id]
@@ -271,7 +243,6 @@ class FlipkartNinjutsuAutomation:
         ext = filename.split(".")[-1].lower()
         if ext == "pdf":
             return "PDFs"
-        # Add other mappings as in original
         return "Other"
     
     def upload_to_drive(self, file_data: bytes, filename: str, folder_id: str, log_queue: queue.Queue) -> bool:
@@ -286,7 +257,6 @@ class FlipkartNinjutsuAutomation:
         log_queue.put(f"[DRIVE] Uploaded to Drive: {filename}")
         return True
     
-    # Adapted from flipkartninjutsu_auto.py, modified for PDF
     def process_pdf_workflow(self, config: dict, log_queue: queue.Queue):
         """Process PDF GRN workflow"""
         log_queue.put("[START] Starting PDF GRN workflow")
@@ -296,12 +266,12 @@ class FlipkartNinjutsuAutomation:
             return {'success': True, 'processed': 0}
         
         processed_count = 0
-        sheet_has_headers = False  # Assume for simplicity
+        sheet_has_headers = False
         is_first_file = True
         
         for i, file in enumerate(pdf_files):
             log_queue.put(f"[PROCESS] Processing PDF {i+1}/{len(pdf_files)}: {file['name']}")
-            df = self.read_pdf_file(file['id'], file['name'], config['llama_api_key'], config['llama_agent'], log_queue)
+            df = self.read_pdf_file(file['id'], file['name'], log_queue)
             if df.empty:
                 log_queue.put(f"[WARNING] No data extracted from {file['name']}")
                 continue
@@ -321,7 +291,7 @@ class FlipkartNinjutsuAutomation:
         results = self.drive_service.files().list(q=query, fields="files(id, name, createdTime)").execute()
         return results.get('files', [])
     
-    def read_pdf_file(self, file_id: str, filename: str, api_key: str, agent: str, log_queue: queue.Queue) -> pd.DataFrame:
+    def read_pdf_file(self, file_id: str, filename: str, log_queue: queue.Queue) -> pd.DataFrame:
         request = self.drive_service.files().get_media(fileId=file_id)
         file_stream = BytesIO()
         downloader = MediaIoBaseDownload(file_stream, request)
@@ -330,39 +300,29 @@ class FlipkartNinjutsuAutomation:
             status, done = downloader.next_chunk()
         file_stream.seek(0)
         
-        # Extract text from PDF
         try:
-            import PyPDF2
             reader = PyPDF2.PdfReader(file_stream)
             text = ""
             for page in reader.pages:
-                text += page.extract_text() + "\n"
+                text += page.extract_text() or ""
             log_queue.put(f"[INFO] Extracted text from PDF: {len(text)} characters")
-        except Exception as e:
-            log_queue.put(f"[ERROR] PDF text extraction failed: {str(e)}")
-            return pd.DataFrame()
-        
-        # Use Llama API (assumed OpenAI-like interface) to parse to CSV
-        try:
-            openai.api_key = api_key
-            response = openai.ChatCompletion.create(
-                model=agent,
-                messages=[
-                    {"role": "system", "content": "You are an agent that extracts structured data from PDF text into CSV format."},
-                    {"role": "user", "content": f"Extract all table data into a CSV format (with headers) from this PDF text: {text[:4000]}"}  # Limit text length
-                ]
-            )
-            csv_text = response['choices'][0]['message']['content']
-            df = pd.read_csv(StringIO(csv_text))
+            # Simple text parsing to DataFrame (customize based on your PDF structure)
+            lines = [line.strip() for line in text.split('\n') if line.strip()]
+            if not lines:
+                return pd.DataFrame()
+            # Assume a simple tabular structure (e.g., space-separated)
+            data = [line.split() for line in lines if ' ' in line]
+            if not data or len(data[0]) < 2:
+                return pd.DataFrame()
+            df = pd.DataFrame(data[1:], columns=data[0] if data[0][0].isalpha() else [f"Col{i}" for i in range(len(data[0]))])
             df = self.clean_dataframe(df)
             log_queue.put(f"[SUCCESS] Parsed PDF to DataFrame: {df.shape}")
             return df
         except Exception as e:
-            log_queue.put(f"[ERROR] Llama API parsing failed: {str(e)}")
+            log_queue.put(f"[ERROR] PDF text extraction failed: {str(e)}")
             return pd.DataFrame()
     
     def clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Similar cleaning as in auto.py
         if df.empty:
             return df
         string_columns = df.select_dtypes(include=['object']).columns
@@ -374,14 +334,13 @@ class FlipkartNinjutsuAutomation:
         df = df.drop_duplicates()
         return df
     
-    def append_to_sheet(self, spreadsheet_id: str, sheet_name: str, df: pd.DataFrame, append_headers: bool, sheet_has_headers: bool, log_queue: queue.Queue):
-        # Similar to auto.py
+    def append_to_sheet(self, spreadsheet_id: str, sheet_name: str, df: pd.DataFrame, is_first_file: bool, sheet_has_headers: bool, log_queue: queue.Queue):
         result = self.sheets_service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=f"{sheet_name}!A1").execute()
         existing_rows = result.get('values', [])
         start_row = len(existing_rows) + 1 if existing_rows else 1
-        if sheet_has_headers and not append_headers:
+        if sheet_has_headers and not is_first_file:
             start_row = 2 if len(existing_rows) >= 1 else 1
-        if append_headers and (not existing_rows or start_row == 1):
+        if is_first_file:
             values = [df.columns.tolist()] + df.values.tolist()
         else:
             values = df.values.tolist()
@@ -394,7 +353,6 @@ class FlipkartNinjutsuAutomation:
         log_queue.put(f"[SUCCESS] Appended {len(values)} rows to sheet")
     
     def remove_duplicates_from_sheet(self, spreadsheet_id: str, sheet_name: str, log_queue: queue.Queue):
-        # Similar to auto.py
         result = self.sheets_service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=f"{sheet_name}!A:ZZ").execute()
         values = result.get('values', [])
         if not values:
@@ -475,7 +433,6 @@ def create_streamlit_ui():
             "search_term": st.text_input("Search Term", value="grn & purchase return"),
             "days_back": st.number_input("Days Back", value=7, key="gmail_days"),
             "max_results": st.number_input("Max Results", value=1000),
-            "attachment_filter": st.text_input("Attachment Filter", value="GRN"),
             "gdrive_folder_id": st.text_input("GDrive Folder ID", value="141D67nCRsJ3HM9WkhvY9enI7-B6Ws")
         }
     
@@ -483,8 +440,6 @@ def create_streamlit_ui():
         st.subheader("PDF Configuration")
         pdf_config = {
             "drive_folder_id": st.text_input("Drive Folder ID", value="19basSTaOUB-X0FLrwmBkeVULGe8nBQ5X"),
-            "llama_api_key": st.text_input("Llama API Key", type="password", value="************************************"),
-            "llama_agent": st.text_input("Llama Agent", value="Instamart Agent"),
             "spreadsheet_id": st.text_input("Spreadsheet ID", value="16WLCJkFKSLKTjIi0962aSkgTGbkO9PMdJTgkWnn11fW"),
             "sheet_range": st.text_input("Sheet Range", value="instamart_grn"),
             "days_back": st.number_input("Days Back", value=1, key="pdf_days")
@@ -502,9 +457,9 @@ def create_streamlit_ui():
                 st.success("PDF workflow completed!")
             else:  # Combined
                 st.info("Running Gmail workflow...")
-                run_workflow_with_logs(st.session_state.automation.process_gmail_workflow, gmail_config, log_container)
+                gmail_result = run_workflow_with_logs(st.session_state.automation.process_gmail_workflow, gmail_config, log_container)
                 st.info("Running PDF workflow...")
-                run_workflow_with_logs(st.session_state.automation.process_pdf_workflow, pdf_config, log_container)
+                pdf_result = run_workflow_with_logs(st.session_state.automation.process_pdf_workflow, pdf_config, log_container)
                 st.success("Combined workflow completed!")
 
 if __name__ == "__main__":
