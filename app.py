@@ -875,7 +875,7 @@ def create_streamlit_ui():
             st.code("""
 Sender: ninjutsu_bot@ninjacart.com
 Search Term: (Empty - will get all attachments)
-Gmail Drive Folder: 1_Q-DC7WyBle-re4Y1avJhcZSievNTP5M
+Gmail Drive Folder: 1ehit788FCfH1Qu9XSR9DTBDzfWVC9NNV
             """)
             
             st.markdown("**Excel Configuration:**")
@@ -913,7 +913,7 @@ Duplicate Removal: Based on PurchaseOrderId + SkuId
         'search_term': '',  # Empty to get all attachments
         'days_back': days_back,
         'max_results': max_results,
-        'gdrive_folder_id': '1_Q-DC7WyBle-re4Y1avJhcZSievNTP5M'
+        'gdrive_folder_id': '1ehit788FCfH1Qu9XSR9DTBDzfWVC9NNV'
     }
     
     excel_config = {
@@ -1090,3 +1090,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
