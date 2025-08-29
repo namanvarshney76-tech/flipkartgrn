@@ -365,8 +365,9 @@ class FlipkartNinjacartAutomation:
             "Activity Log",
             value='\n'.join(st.session_state.logs[-20:]),  # Show last 20 entries
             height=300,
-            key=f"log_display_{len(st.session_state.logs)}"
+            key="activity_log_display"   # fixed unique key
         )
+
     
     def _get_email_details(self, message_id: str) -> Dict:
         """Get email details including sender and subject"""
@@ -1090,6 +1091,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
