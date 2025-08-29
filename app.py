@@ -873,7 +873,7 @@ def create_streamlit_ui():
         with st.expander("📋 Hardcoded Configuration (View Only)", expanded=False):
             st.markdown("**Gmail Configuration:**")
             st.code("""
-Sender: ninjutsu_bot@ninjacart.com
+Sender: ds-alerts@ninjacart.in
 Search Term: (Empty - will get all attachments)
 Gmail Drive Folder: 1ehit788FCfH1Qu9XSR9DTBDzfWVC9NNV
             """)
@@ -909,8 +909,8 @@ Duplicate Removal: Based on PurchaseOrderId + SkuId
     
     # Hardcoded configurations
     gmail_config = {
-        'sender': 'ninjutsu_bot@ninjacart.com',
-        'search_term': '',  # Empty to get all attachments
+        'sender': 'ds-alerts@ninjacart.in',
+        'search_term': 'GRN',  # Empty to get all attachments
         'days_back': days_back,
         'max_results': max_results,
         'gdrive_folder_id': '1ehit788FCfH1Qu9XSR9DTBDzfWVC9NNV'
@@ -1042,7 +1042,7 @@ def create_help_section():
         4. **Monitor** progress in the activity log
         
         ### Workflow Details:
-        - **Gmail to Drive**: Downloads Excel attachments from ninjutsu_bot@ninjacart.com
+        - **Gmail to Drive**: Downloads Excel attachments from ds-alerts@ninjacart.in
         - **Drive to Sheets**: Processes today's Excel files and consolidates to Google Sheets
         - **Combined**: Runs Gmail first, then Excel processing automatically
         """)
@@ -1090,5 +1090,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
