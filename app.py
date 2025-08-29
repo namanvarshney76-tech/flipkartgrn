@@ -88,7 +88,7 @@ class FlipkartNinjutsuAutomation:
                 flow = Flow.from_client_config(
                     client_config=creds_data,
                     scopes=combined_scopes,
-                    redirect_uri=st.secrets.get("redirect_uri", "https://your-streamlit-app-url")  # Configure in secrets
+                    redirect_uri=st.secrets.get("redirect_uri", "https://flipkartgrn.streamlit.app/")  # Configure in secrets
                 )
                 
                 auth_url, _ = flow.authorization_url(prompt='consent')
@@ -464,3 +464,4 @@ def create_streamlit_ui():
 
 if __name__ == "__main__":
     create_streamlit_ui()
+
