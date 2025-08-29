@@ -52,76 +52,80 @@ class FlipkartNinjutsuAutomation:
         self.sheets_scopes = ['https://www.googleapis.com/auth/spreadsheets']
     
     def authenticate_from_secrets(self, progress_bar, status_text):
-        """Authenticate using Streamlit secrets with web-based OAuth flow"""
-        try:
-            status_text.text("Authenticating with Google APIs...")
-            progress_bar.progress(10)
-            
-            if 'oauth_token' in st.session_state:
-                try:
-                    combined_scopes = list(set(self.gmail_scopes + self.drive_scopes + self.sheets_scopes))
-                    creds = Credentials.from_authorized_user_info(st.session_state.oauth_token, combined_scopes)
-                    if creds and creds.valid:
-                        progress_bar.progress(50)
-                        self.gmail_service = build('gmail', 'v1', credentials=creds)
-                        self.drive_service = build('drive', 'v3', credentials=creds)
-                        self.sheets_service = build('sheets', 'v4', credentials=creds)
-                        progress_bar.progress(100)
-                        status_text.text("Authentication successful!")
-                        return True
-                    elif creds and creds.expired and creds.refresh_token:
-                        creds.refresh(Request())
-                        st.session_state.oauth_token = json.loads(creds.to_json())
-                        self.gmail_service = build('gmail', 'v1', credentials=creds)
-                        self.drive_service = build('drive', 'v3', credentials=creds)
-                        self.sheets_service = build('sheets', 'v4', credentials=creds)
-                        progress_bar.progress(100)
-                        status_text.text("Authentication successful!")
-                        return True
-                except Exception as e:
-                    st.info(f"Cached token invalid, requesting new authentication: {str(e)}")
-            
-            if "google" in st.secrets and "credentials_json" in st.secrets["google"]:
-                creds_data = json.loads(st.secrets["google"]["credentials_json"])
+    try:
+        status_text.text("Authenticating with Google APIs...")
+        progress_bar.progress(10)
+        
+        if 'oauth_token' in st.session_state:
+            try:
                 combined_scopes = list(set(self.gmail_scopes + self.drive_scopes + self.sheets_scopes))
-                
-                flow = Flow.from_client_config(
-                    client_config=creds_data,
-                    scopes=combined_scopes,
-                    redirect_uri=st.secrets.get("redirect_uri", "https://flipkartgrn.streamlit.app/")  # Configure in secrets
-                )
-                
-                auth_url, _ = flow.authorization_url(prompt='consent')
-                query_params = st.query_params
-                if "code" in query_params:
-                    try:
-                        code = query_params["code"][0]
-                        flow.fetch_token(code=code)
-                        creds = flow.credentials
-                        st.session_state.oauth_token = json.loads(creds.to_json())
-                        progress_bar.progress(50)
-                        self.gmail_service = build('gmail', 'v1', credentials=creds)
-                        self.drive_service = build('drive', 'v3', credentials=creds)
-                        self.sheets_service = build('sheets', 'v4', credentials=creds)
-                        progress_bar.progress(100)
-                        status_text.text("Authentication successful!")
-                        st.query_params.clear()
-                        return True
-                    except Exception as e:
-                        st.error(f"Authentication failed: {str(e)}")
-                        return False
-                else:
-                    st.markdown("### Google Authentication Required")
-                    st.markdown(f"[Authorize with Google]({auth_url})")
-                    st.info("Click the link above to authorize, you'll be redirected back automatically")
-                    st.stop()
+                creds = Credentials.from_authorized_user_info(st.session_state.oauth_token, combined_scopes)
+                if creds and creds.valid:
+                    progress_bar.progress(50)
+                    self.gmail_service = build('gmail', 'v1', credentials=creds)
+                    self.drive_service = build('drive', 'v3', credentials=creds)
+                    self.sheets_service = build('sheets', 'v4', credentials=creds)
+                    progress_bar.progress(100)
+                    status_text.text("Authentication successful!")
+                    return True
+                elif creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                    st.session_state.oauth_token = json.loads(creds.to_json())
+                    self.gmail_service = build('gmail', 'v1', credentials=creds)
+                    self.drive_service = build('drive', 'v3', credentials=creds)
+                    self.sheets_service = build('sheets', 'v4', credentials=creds)
+                    progress_bar.progress(100)
+                    status_text.text("Authentication successful!")
+                    return True
+            except Exception as e:
+                st.info(f"Cached token invalid, requesting new authentication: {str(e)}")
+        
+        if "google" in st.secrets and "credentials_json" in st.secrets["google"]:
+            creds_data = json.loads(st.secrets["google"]["credentials_json"])
+            redirect_uri = st.secrets.get("redirect_uri")
+            if not redirect_uri:
+                st.error("Redirect URI missing in Streamlit secrets")
+                st.stop()
+            combined_scopes = list(set(self.gmail_scopes + self.drive_scopes + self.sheets_scopes))
+            
+            flow = Flow.from_client_config(
+                client_config=creds_data,
+                scopes=combined_scopes,
+                redirect_uri=redirect_uri
+            )
+            
+            auth_url, _ = flow.authorization_url(prompt='consent')
+            query_params = st.query_params
+            if "code" in query_params:
+                st.write("Received code:", query_params["code"])  # Debug
+                try:
+                    code = query_params["code"][0]
+                    flow.fetch_token(code=code)
+                    creds = flow.credentials
+                    st.session_state.oauth_token = json.loads(creds.to_json())
+                    progress_bar.progress(50)
+                    self.gmail_service = build('gmail', 'v1', credentials=creds)
+                    self.drive_service = build('drive', 'v3', credentials=creds)
+                    self.sheets_service = build('sheets', 'v4', credentials=creds)
+                    progress_bar.progress(100)
+                    status_text.text("Authentication successful!")
+                    st.query_params.clear()
+                    return True
+                except Exception as e:
+                    st.error(f"Authentication failed: {str(e)}")
+                    return False
             else:
-                st.error("Google credentials missing in Streamlit secrets")
-                return False
-                
-        except Exception as e:
-            st.error(f"Authentication failed: {str(e)}")
+                st.markdown("### Google Authentication Required")
+                st.markdown(f"[Authorize with Google]({auth_url})")
+                st.info("Click the link above to authorize, you'll be redirected back automatically")
+                st.stop()
+        else:
+            st.error("Google credentials missing in Streamlit secrets")
             return False
+            
+    except Exception as e:
+        st.error(f"Authentication failed: {str(e)}")
+        return False
 
     def process_gmail_workflow(self, config: dict, log_queue: queue.Queue):
         """Process Gmail attachment download workflow"""
@@ -464,4 +468,5 @@ def create_streamlit_ui():
 
 if __name__ == "__main__":
     create_streamlit_ui()
+
 
